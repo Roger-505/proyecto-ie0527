@@ -1,19 +1,36 @@
+import math
+import matplotlib.pyplot as plt
 import numpy as np
-import commpy 
+import commpy.channels as chan
 from commpy.wifi80211 import Wifi80211
-from commpy.channels import _FlatChannel
 
-wifi = Wifi80211(2)
+# AWGN channel
+channels = chan.SISOFlatChannel(None, (1 + 0j, 0j))
 
-# Define channel to be used in the simulation
-channel = _FlatChannel
+w2 = Wifi80211(mcs=1)   # QPSK 1/2
+w3 = Wifi80211(mcs=2)   # QPSK 3/4
 
-# Define the SNRs (in dB) to simulate
-SNRs = np.arange(0, 21, 2)  # SNR from 0 to 20 dB in steps of 2 dB
+# SNR range to test
+SNRs2 = np.arange(0, 10) + 10 * math.log10(w2.get_modem().num_bits_symbol)
+SNRs3 = np.arange(0, 10) + 10 * math.log10(w3.get_modem().num_bits_symbol)
 
-# Define the maximum number of transmissions and minimum number of errors
-tx_max = 20000  # Maximum number of transmissions per SNR
-err_min = 100   # Minimum number of errors to accumulate per SNR
+# sim definitions
+tx_max = 100
+err_min = 10
+chunk = 600
 
-# Run the simulation
-BERs = wifi.link_performance(channel, SNRs, tx_max, err_min)
+# sim
+BERs_mcs2 = w2.link_performance(channels, SNRs2, tx_max, err_min, chunk, stop_on_surpass_error=False)
+BERs_mcs3 = w3.link_performance(channels, SNRs3, tx_max, err_min, chunk, stop_on_surpass_error=False)
+
+# Extract the first element which is the BER data
+BERs_mcs2 = BERs_mcs2[0] 
+BERs_mcs3 = BERs_mcs3[0] 
+
+# Test
+plt.semilogy(SNRs2, BERs_mcs2, 'o-', SNRs3, BERs_mcs3, 'o-')
+plt.grid()
+plt.xlabel('Signal to Noise Ratio (dB)')
+plt.ylabel('Bit Error Rate')
+plt.legend(('MCS 1', 'MCS 2'))
+plt.show()
